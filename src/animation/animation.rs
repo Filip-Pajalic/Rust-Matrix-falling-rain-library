@@ -1,4 +1,4 @@
-use macroquad::color::{Color, WHITE, BLACK};
+use macroquad::color::{Color, WHITE};
 use std::time::{Duration, Instant};
 
 pub enum Easing {
@@ -144,9 +144,9 @@ fn ease_out(t: f32) -> f32 {
 
 
 pub fn interpolate(start: Color, end: Color, factor: f32) -> Color {
-    let r = (start.r as f32 * (1.0 - factor) + end.r as f32 * factor);
-    let g = (start.g as f32 * (1.0 - factor) + end.g as f32 * factor);
-    let b = (start.b as f32 * (1.0 - factor) + end.b as f32 * factor);
-    let a = (start.a as f32 * (1.0 - factor) + end.a as f32 * factor);
+    let r = start.r as f32 * (1.0 - factor) + end.r as f32 * factor;
+    let g = start.g as f32 * (1.0 - factor) + end.g as f32 * factor;
+    let b = start.b as f32 * (1.0 - factor) + end.b as f32 * factor;
+    let a = start.a as f32 * (1.0 - factor) + end.a as f32 * factor;
     Color::new(r, g, b, a)
 }
