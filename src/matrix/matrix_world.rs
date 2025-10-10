@@ -5,7 +5,7 @@ use std::sync::{Arc, RwLock};
 
 use crate::config::Config;
 use crate::matrix::matrix_col::MatrixCol;
-use raylib::prelude::*;
+use macroquad::prelude::*;
 
 #[derive(Debug, Clone)]
 pub struct MatrixError {
@@ -68,15 +68,15 @@ impl MatrixWorld {
         Ok(matrix)
     }
 
-    pub fn update(&mut self, d: &mut RaylibDrawHandle, font: &mut Font) {
+    pub fn update(&mut self, font: &Font, font_size: f32) {
         for i in 0..self.width {
             self.spawn_col(i);
         }
         for col in self.cols.iter_mut() {
-            col.update(d, font);
+            col.update(font, font_size);
         }
         if self.config.read().unwrap().debug {
-            self.debug_grid(d, font);
+            self.debug_grid(font);
         }
     }
 
@@ -109,7 +109,7 @@ impl MatrixWorld {
     }
 
     fn get_character_width(&self, font: &Font, character: &str) -> f32 {
-        font.measure_text(character, self.font_height as f32, 0.0).x
+        measure_text(character, Some(font), self.font_height as u16, 1.0).width
     }
 
     fn get_height_internal_offset_range(&self) -> (i32, i32) {
@@ -117,7 +117,7 @@ impl MatrixWorld {
         (-range, range)
     }
 
-    pub fn debug_grid(&mut self, d: &mut RaylibDrawHandle, font: &mut Font) {
+    pub fn debug_grid(&mut self, font: &Font) {
         let ( grid_size_x,  grid_size_y) = self.calculate_grid_size();
         let ( grid_offset_x,  grid_offset_y) = self.get_grid_offset();
         self.update_font_width(font);
@@ -126,12 +126,13 @@ impl MatrixWorld {
         //let offset = self.get_character_offset(font, "A"); // so the grid is not over /font offset
         for x in min..grid_size_x + max {
             for y in min..grid_size_y + max {
-                d.draw_rectangle_lines(
-                    grid_offset_x + x * self.font_width,
-                    grid_offset_y + y * self.font_height,
-                    self.font_width,
-                    self.font_height,
-                    Color::RED,
+                draw_rectangle_lines(
+                    grid_offset_x as f32 + x as f32 * self.font_width as f32,
+                    grid_offset_y as f32 + y as f32 * self.font_height as f32,
+                    self.font_width as f32,
+                    self.font_height as f32,
+                    1.0,
+                    RED,
                 );
             }
         }

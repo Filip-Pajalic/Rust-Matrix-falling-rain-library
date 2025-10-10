@@ -2,11 +2,8 @@ use crate::animation::animation::{AnimationStep, Easing, Transition};
 use crate::animation::Animation;
 use crate::matrix::util::{random_duration, AlphanumericMatrix};
 use crate::FONT_WIDTH;
-use rand::{Rng};
-use raylib::color::Color;
-use raylib::drawing::{RaylibDraw, RaylibDrawHandle};
-use raylib::math::Vector2;
-use raylib::prelude::Font;
+use ::rand::{Rng, rng};
+use macroquad::prelude::*;
 use std::time::{Duration, Instant};
 
 pub struct MatrixCharacter {
@@ -27,27 +24,27 @@ pub struct MatrixCharacter {
 #[repr(u32)]
 #[derive(Clone)]
 enum MatrixColor {
-    GREEN = 0x003B00F,
+    GREEN = 0x00FF00FF,
 }
 
 impl MatrixColor {
     fn to_color(self, alpha: u8) -> Color {
         let hex = self as u32;
-        let r = ((hex >> 16) & 0xFF) as u8;
-        let g = ((hex >> 8) & 0xFF) as u8;
-        let b = (hex & 0xFF) as u8;
-        Color { r, g, b, a: alpha }
+        let r = ((hex >> 24) & 0xFF) as u8;
+        let g = ((hex >> 16) & 0xFF) as u8;
+        let b = ((hex >> 8) & 0xFF) as u8;
+        Color::from_rgba(r, g, b, alpha)
     }
 }
 
 impl MatrixCharacter {
     pub fn new(y_pos: i32, x_pos: i32, max_ancestors: u32, child_spawn_time: u64) -> Self {
-        let mut rng = rand::rng();
+        let mut rng = rng();
         MatrixCharacter {
             y_pos,
             x_pos,
             glyph: Self::generate_random_character(),
-            color: Color::WHITE,
+            color: WHITE,
             child: None,
             max_ancestors,
             child_spawn_timer: Instant::now(),
@@ -79,27 +76,27 @@ impl MatrixCharacter {
         }
     }
     pub fn generate_random_character() -> char {
-        let mut rng = rand::rng();
+        let mut rng = rng();
         rng.sample(AlphanumericMatrix) as char
     }
     fn symbol_to_string(&self) -> String {
         self.glyph.to_string()
     }
 
-    fn update(&mut self, d: &mut RaylibDrawHandle, font: &mut Font) {
+    fn update(&mut self, font: &Font, font_size: f32) {
         self.spawn_child();
         self.update_appearance();
 
-        d.draw_text_ex(
-            &font,
+        draw_text_ex(
             &self.symbol_to_string(),
-            Vector2::new(
-                self.x_pos as f32 * FONT_WIDTH as f32,
-                (self.y_pos * font.baseSize) as f32,
-            ),
-            font.baseSize as f32,
-            2.0,
-            self.color,
+            self.x_pos as f32 * FONT_WIDTH as f32,
+            self.y_pos as f32 * font_size,
+            TextParams {
+                font_size: font_size as u16,
+                font: Some(font),
+                color: self.color,
+                ..Default::default()
+            },
         );
     }
 
@@ -113,9 +110,9 @@ impl MatrixCharacter {
         self.color = self.animation.current_color;
     }
 
-    pub fn traverse_and_tick(&mut self, d: &mut RaylibDrawHandle, font: &mut Font) {
+    pub fn traverse_and_tick(&mut self, font: &Font, font_size: f32) {
         if let Some(ref mut child) = self.child {
-            child.traverse_and_tick(d, font);
+            child.traverse_and_tick(font, font_size);
             if !child.alive {
                 if self.animation.concluded {
                     self.alive = false;
@@ -126,12 +123,12 @@ impl MatrixCharacter {
                 self.alive = false;
             }
         }
-        self.update(d, font);
+        self.update(font, font_size);
     }
     fn create_animation_steps(alpha: u8) -> Vec<AnimationStep> {
         let steps = vec![
             AnimationStep {
-                color: Color::WHITE,
+                color: WHITE,
                 duration: Duration::from_millis(100),
                 transition: Transition::new(Duration::from_millis(1000), Easing::EaseOut, true),
             },
@@ -141,7 +138,7 @@ impl MatrixCharacter {
                 transition: Transition::new(Duration::from_millis(1000), Easing::EaseOut, false),
             },
             AnimationStep {
-                color: Color::BLACK,
+                color: BLACK,
                 duration: Duration::from_millis(500),
                 transition: Transition::new(Duration::from_millis(2000), Easing::EaseOut, false),
             },

@@ -1,5 +1,5 @@
-use rand::distr::Distribution;
-use rand::{Rng};
+use ::rand::distr::Distribution;
+use ::rand::{Rng, rng};
 use std::time::Duration;
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -25,7 +25,7 @@ impl Distribution<u8> for AlphanumericMatrix {
 }
 
 pub fn random_duration(min: Duration, max: Duration) -> Duration {
-    let mut rng = rand::rng();
+    let mut rng = rng();
     let range = max.as_millis() - min.as_millis();
     let random_millis = rng.random_range(0..=range) as u64;
     min + Duration::from_millis(random_millis)

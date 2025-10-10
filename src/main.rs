@@ -3,7 +3,7 @@ mod config;
 mod game;
 mod matrix;
 
-use raylib::prelude::*;
+use macroquad::prelude::*;
 use std::process;
 
 use crate::config::Config;
@@ -13,7 +13,8 @@ use matrix::*;
 const FONT_HEIGHT: i32 = 30;
 const FONT_WIDTH: i32 = 30;
 
-fn main() -> Result<(), MatrixError> {
+#[macroquad::main("Matrix")]
+async fn main() -> Result<(), MatrixError> {
     let config = Config::from_file("config.yaml");
     let game_state = GameState::new(config);
 
@@ -23,21 +24,19 @@ fn main() -> Result<(), MatrixError> {
             let config_read = game_state.config.read().unwrap();
             let window_width = config_read.world.window_width_px;
             let window_height = config_read.world.window_height_px;
+            let font_size = config_read.world.font_size_px as f32;
 
-            let (mut rl, thread) = init()
-                .size(window_width, window_height)
-                .title("Matrix")
-                .build();
-            rl.set_target_fps(10);
-            let mut font = rl.load_font(&thread, "resources/matrix-code.ttf").unwrap();
-            font.baseSize = config_read.world.font_size_px.clone();
-            rl.gui_enable();
+            request_new_screen_size(window_width as f32, window_height as f32);
+            let font = load_ttf_font("resources/matrix-code.ttf").await.unwrap();
 
             drop(config_read);
-            while !rl.window_should_close() {
-                let mut d = rl.begin_drawing(&thread);
-                d.clear_background(Color::BLACK);
-                matrix.update(&mut d, &mut font);
+            loop {
+                clear_background(BLACK);
+                matrix.update(&font, font_size);
+                if is_key_pressed(KeyCode::Escape) {
+                    break;
+                }
+                next_frame().await;
             }
             Ok(())
         }

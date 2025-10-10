@@ -1,9 +1,8 @@
 use crate::matrix::matrix_character::MatrixCharacter;
 use crate::matrix::util::random_duration;
 use crate::FONT_HEIGHT;
-use rand::Rng;
-use raylib::drawing::RaylibDrawHandle;
-use raylib::prelude::Font;
+use ::rand::{Rng, rng};
+use macroquad::prelude::*;
 use std::time::{Duration, Instant};
 
 pub struct MatrixCol {
@@ -29,13 +28,13 @@ impl MatrixCol {
             start_delay: random_duration(Duration::from_millis(100), Duration::from_millis(9000)),
         }
     }
-    pub fn update(&mut self, d: &mut RaylibDrawHandle, font: &mut Font) {
+    pub fn update(&mut self, font: &Font, font_size: f32) {
         if self.time_elapsed.elapsed() > self.start_delay {
             self.timer_expired = true;
         }
 
         if self.timer_expired {
-            self.code.traverse_and_tick(d, font);
+            self.code.traverse_and_tick(font, font_size);
             if self.code.alive == false {
                 self.is_spawned = false;
             }
@@ -43,11 +42,11 @@ impl MatrixCol {
     }
 
     fn random_length(max: u32) -> u32 {
-        let mut rng = rand::rng();
+        let mut rng = rng();
         rng.random_range(10..=max as i32 / 2) as u32
     }
     fn calculate_y_values(width: i32) -> i32 {
-        let mut rng = rand::rng();
+        let mut rng = rng();
         let min = -3;
         let max = width / FONT_HEIGHT - 3;
         rng.random_range(min..=max)

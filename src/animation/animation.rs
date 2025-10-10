@@ -1,8 +1,7 @@
-use raylib::prelude::Color;
+use macroquad::color::{Color, WHITE, BLACK};
 use std::time::{Duration, Instant};
 
 pub enum Easing {
-    EaseIn,
     EaseOut,
 }
 
@@ -40,7 +39,7 @@ pub struct Animation {
 impl Animation {
     pub fn new(steps: Vec<AnimationStep>) -> Self {
         Animation {
-            current_color: Color::WHITE,
+            current_color: WHITE,
             timer: Instant::now(),
             steps,
             current_step_index: 0,
@@ -98,7 +97,6 @@ impl Animation {
 
     fn apply_easing(&self, t: f32, easing: &Easing) -> f32 {
         match easing {
-            Easing::EaseIn => ease_in(t),
             Easing::EaseOut => ease_out(t),
         }
     }
@@ -144,13 +142,11 @@ fn ease_out(t: f32) -> f32 {
     1.0 - (1.0 - t) * (1.0 - t)
 }
 
-fn ease_in(t: f32) -> f32 {
-    t * t
-}
 
 pub fn interpolate(start: Color, end: Color, factor: f32) -> Color {
-    let r = (start.r as f32 * (1.0 - factor) + end.r as f32 * factor) as u8;
-    let g = (start.g as f32 * (1.0 - factor) + end.g as f32 * factor) as u8;
-    let b = (start.b as f32 * (1.0 - factor) + end.b as f32 * factor) as u8;
-    Color::new(r, g, b, 255)
+    let r = (start.r as f32 * (1.0 - factor) + end.r as f32 * factor);
+    let g = (start.g as f32 * (1.0 - factor) + end.g as f32 * factor);
+    let b = (start.b as f32 * (1.0 - factor) + end.b as f32 * factor);
+    let a = (start.a as f32 * (1.0 - factor) + end.a as f32 * factor);
+    Color::new(r, g, b, a)
 }
