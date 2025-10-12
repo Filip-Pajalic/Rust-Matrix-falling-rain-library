@@ -1,54 +1,75 @@
 use crate::matrix::matrix_character::MatrixCharacter;
 use crate::matrix::util::random_duration;
+use crate::matrix::batch_renderer::BatchRenderer;
 use crate::FONT_HEIGHT;
-use ::rand::{Rng, rng};
 use macroquad::prelude::*;
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use instant::Instant;
 
 pub struct MatrixCol {
     pub code: MatrixCharacter,
     pub is_spawned: bool,
-    pub time_elapsed: Instant,
-    pub start_delay: Duration,
-    pub timer_expired: bool,
+    start_time: Instant,
+    start_delay: Duration,
 }
 
 impl MatrixCol {
     pub fn new(x_pos: i32, max_depth: u32, window_width: i32, child_spawn_time: u64) -> Self {
+        let start_delay = random_duration(
+            Duration::from_millis(100), 
+            Duration::from_millis(9000)
+        );
+        
         MatrixCol {
             code: MatrixCharacter::new(
-                Self::calculate_y_values(window_width),
+                Self::calculate_random_y_position(window_width),
                 x_pos,
-                Self::random_length(max_depth),
+                Self::calculate_random_length(max_depth),
                 child_spawn_time,
             ),
             is_spawned: true,
-            timer_expired: false,
-            time_elapsed: Instant::now(),
-            start_delay: random_duration(Duration::from_millis(100), Duration::from_millis(9000)),
+            start_time: Instant::now(),
+            start_delay,
         }
     }
-    pub fn update(&mut self, font: &Font, font_size: f32) {
-        if self.time_elapsed.elapsed() > self.start_delay {
-            self.timer_expired = true;
-        }
-
-        if self.timer_expired {
-            self.code.traverse_and_tick(font, font_size);
-            if self.code.alive == false {
+    
+    /// Update and collect render data for batching
+    #[inline]
+    pub fn update_and_collect(&mut self, batch: &mut BatchRenderer, font_size: f32) {
+        let elapsed = self.start_time.elapsed();
+        
+        if elapsed >= self.start_delay {
+            self.code.traverse_and_collect(batch, font_size);
+            
+            if !self.code.alive {
                 self.is_spawned = false;
             }
         }
     }
 
-    fn random_length(max: u32) -> u32 {
-        let mut rng = rng();
-        rng.random_range(10..=max as i32 / 2) as u32
+    #[inline]
+    pub fn has_started(&self) -> bool {
+        self.start_time.elapsed() >= self.start_delay
     }
-    fn calculate_y_values(width: i32) -> i32 {
-        let mut rng = rng();
-        let min = -3;
-        let max = width / FONT_HEIGHT - 3;
-        rng.random_range(min..=max)
+
+    #[inline]
+    fn calculate_random_length(max_depth: u32) -> u32 {
+        let min_length = 10;
+        let max_length = max_depth / 2;
+        
+        if max_length <= min_length {
+            return min_length;
+        }
+        
+        fastrand::u32(min_length..=max_length)
+    }
+    
+    #[inline]
+    fn calculate_random_y_position(window_width: i32) -> i32 {
+        let offset = 3;
+        let min = -offset;
+        let max = (window_width / FONT_HEIGHT) - offset;
+        
+        fastrand::i32(min..=max)
     }
 }

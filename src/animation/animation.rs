@@ -1,5 +1,6 @@
 use macroquad::color::{Color, WHITE};
-use std::time::{Duration, Instant};
+use std::time::Duration;
+use instant::Instant;
 
 pub enum Easing {
     EaseOut,
@@ -31,16 +32,17 @@ pub struct AnimationStep {
 
 pub struct Animation {
     pub current_color: Color,
-    timer: Instant,
+    step_start_time: Instant,  
     steps: Vec<AnimationStep>,
     current_step_index: usize,
     pub concluded: bool,
 }
+
 impl Animation {
     pub fn new(steps: Vec<AnimationStep>) -> Self {
         Animation {
             current_color: WHITE,
-            timer: Instant::now(),
+            step_start_time: Instant::now(),
             steps,
             current_step_index: 0,
             concluded: false,
@@ -56,43 +58,37 @@ impl Animation {
         self.advance_step_if_needed();
     }
 
-    pub fn trigger_transition(&mut self ) {
-        let  current_step = &mut self.steps[self.current_step_index];
+    pub fn trigger_transition(&mut self) {
+        let current_step = &mut self.steps[self.current_step_index];
         if current_step.transition.trigger_required && !current_step.transition.triggered {
             current_step.transition.triggered = true;
-            self.timer = Instant::now() - current_step.duration;
+            self.step_start_time = Instant::now();
         }
     }
 
     fn update_color(&mut self) {
         let current_step = &self.steps[self.current_step_index];
-        if self.is_within_step_duration(current_step) {
+        let elapsed = self.step_start_time.elapsed();
+        
+        if elapsed < current_step.duration {
+            // Still in step duration
             self.current_color = current_step.color;
         } else if !self.is_last_step() {
             let transition = &current_step.transition;
             if transition.trigger_required && !transition.triggered {
-                // Waiting for the trigger, color remains the current step's color
+                // Waiting for trigger
                 self.current_color = current_step.color;
             } else {
-                self.current_color = self.calculate_transition_color(current_step);
+                // In transition
+                let transition_elapsed = elapsed - current_step.duration;
+                let t = (transition_elapsed.as_secs_f32() / transition.duration.as_secs_f32()).min(1.0);
+                let eased_t = self.apply_easing(t, &transition.easing);
+                let next_color = self.steps[self.current_step_index + 1].color;
+                self.current_color = interpolate(current_step.color, next_color, eased_t);
             }
         } else {
             self.current_color = current_step.color;
         }
-    }
-
-    fn calculate_transition_color(&self, current_step: &AnimationStep) -> Color {
-        let elapsed_after_step = self.timer.elapsed() - current_step.duration;
-        let transition_duration = current_step.transition.duration;
-        let t = if transition_duration == Duration::ZERO {
-            1.0
-        } else {
-            (elapsed_after_step.as_secs_f32() / transition_duration.as_secs_f32()).min(1.0)
-        };
-
-        let eased_t = self.apply_easing(t, &current_step.transition.easing);
-        let next_color = self.steps[self.current_step_index + 1].color;
-        interpolate(current_step.color, next_color, eased_t)
     }
 
     fn apply_easing(&self, t: f32, easing: &Easing) -> f32 {
@@ -108,40 +104,27 @@ impl Animation {
         }
 
         let current_step = &self.steps[self.current_step_index];
-        let total_duration = self.calculate_total_duration(current_step);
+        let elapsed = self.step_start_time.elapsed();
+        let total_duration = current_step.duration + current_step.transition.duration;
 
-        while self.timer.elapsed() >= total_duration && !self.is_last_step() {
+        if elapsed >= total_duration {
             self.current_step_index += 1;
-            self.timer = Instant::now();
-        }
-    }
-
-    fn calculate_total_duration(&self, current_step: &AnimationStep) -> Duration {
-        if !self.is_last_step() {
-            let transition = &current_step.transition;
-            if transition.trigger_required && !transition.triggered {
-                current_step.duration
-            } else {
-                current_step.duration + transition.duration
+            self.step_start_time = Instant::now();
+            
+            if self.is_last_step() {
+                self.concluded = true;
             }
-        } else {
-            current_step.duration
         }
     }
 
     fn is_last_step(&self) -> bool {
         self.current_step_index == self.steps.len() - 1
     }
-
-    fn is_within_step_duration(&self, current_step: &AnimationStep) -> bool {
-        self.timer.elapsed() < current_step.duration
-    }
 }
 
 fn ease_out(t: f32) -> f32 {
     1.0 - (1.0 - t) * (1.0 - t)
 }
-
 
 pub fn interpolate(start: Color, end: Color, factor: f32) -> Color {
     let r = start.r as f32 * (1.0 - factor) + end.r as f32 * factor;

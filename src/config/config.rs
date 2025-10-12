@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::fs;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct Config {
@@ -21,8 +20,21 @@ pub struct Glyph {
 }
 
 impl Config {
-    pub fn from_file(path: &str) -> Self {
-        let content = fs::read_to_string(path).expect("Failed to read config file");
-        serde_yaml::from_str(&content).expect("Failed to parse config file")
+    pub fn from_file(_path: &str) -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let config_str = std::fs::read_to_string(_path)
+                .unwrap_or_else(|_| panic!("Failed to read config file: {}", _path));
+            serde_yaml::from_str(&config_str)
+                .unwrap_or_else(|_| panic!("Failed to parse config file: {}", _path))
+        }
+        
+        #[cfg(target_arch = "wasm32")]
+        {
+            // Embed the config file at compile time for WASM
+            let config_str = include_str!("../../config.yaml");
+            serde_yaml::from_str(config_str)
+                .unwrap_or_else(|_| panic!("Failed to parse embedded config"))
+        }
     }
 }

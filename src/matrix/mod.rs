@@ -1,8 +1,7 @@
-mod matrix_character;
-mod matrix_col;
-mod matrix_world;
-mod util;
+pub mod batch_renderer;
+pub mod matrix_character;
+pub mod matrix_col;
+pub mod matrix_world;
+pub mod util;
 
-pub use matrix_world::MatrixWorld;
-
-pub use matrix_world::MatrixError;
+pub use matrix_world::{MatrixWorld, MatrixError};
