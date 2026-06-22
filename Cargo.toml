@@ -1,11 +1,29 @@
 [package]
-name = "raytest"
+name = "matrix-rain"
 version = "0.1.0"
 edition = "2021"
+description = "Renderer-agnostic Matrix-style falling code simulation for Rust."
+readme = "readme.md"
+keywords = ["matrix", "rain", "animation", "visualization"]
+categories = ["graphics", "game-development"]
+
+[lib]
+name = "matrix_rain"
+path = "src/lib.rs"
+
+[[bin]]
+name = "matrix-rain-demo"
+path = "src/main.rs"
+required-features = ["demo"]
+
+[features]
+default = []
+demo = ["macroquad-renderer", "yaml"]
+macroquad-renderer = ["dep:macroquad"]
+yaml = ["dep:serde_yaml"]
 
 [dependencies]
-macroquad = "0.4"
+macroquad = { version = "0.4", optional = true }
 serde = { version = "1.0", features = ["derive"] }
-serde_yaml = "0.9"
+serde_yaml = { version = "0.9", optional = true }
 fastrand = "2.0"  # Works on both native and WASM, no special config needed
-instant = "0.1"  # Cross-platform Instant that works on WASM

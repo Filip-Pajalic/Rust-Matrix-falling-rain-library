@@ -1,84 +1,119 @@
-mod animation;
-mod config;
-mod game;
-mod matrix;
-
 use macroquad::prelude::*;
-use std::process;
+use matrix_rain::{MacroquadRenderer, MatrixError, MatrixRain, MatrixRainConfig};
+use serde::Deserialize;
+use std::collections::VecDeque;
+use std::time::Duration;
 
-use crate::config::Config;
-use crate::game::GameState;
-use matrix::*;
+const FPS_SAMPLE_COUNT: usize = 60;
 
-const FONT_HEIGHT: i32 = 30;
-const FONT_WIDTH: i32 = 30;
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+struct DemoConfig {
+    #[serde(flatten)]
+    rain: MatrixRainConfig,
+    debug_overlay: bool,
+}
 
-
-
-
-#[macroquad::main("Matrix")]
+#[macroquad::main("Matrix Rain")]
 async fn main() -> Result<(), MatrixError> {
-    let config = Config::from_file("config.yaml");
-    let game_state = GameState::new(config);
+    let demo_config = load_demo_config()?;
+    let rain_config = demo_config.rain.clone();
 
-    let matrix = MatrixWorld::new(game_state.config.clone());
-    match matrix {
-        Ok(mut matrix) => {
-            let config_read = game_state.config.read().unwrap();
-            let window_width = config_read.world.window_width_px;
-            let window_height = config_read.world.window_height_px;
-            let font_size = config_read.world.font_size_px as f32;
+    request_new_screen_size(
+        rain_config.viewport_width_px as f32,
+        rain_config.viewport_height_px as f32,
+    );
 
-            request_new_screen_size(window_width as f32, window_height as f32);
-            
-            let font_bytes = include_bytes!("../resources/matrix-code.ttf");
-            let font = load_ttf_font_from_bytes(font_bytes).unwrap();
+    let font = load_ttf_font_from_bytes(include_bytes!("../resources/matrix-code.ttf")).map_err(
+        |error| MatrixError::resource(format!("failed to load embedded font: {error:?}")),
+    )?;
 
-            drop(config_read);
-            
-            // FPS tracking
-            let mut fps_samples = Vec::new();
-            let mut frame_time_samples = Vec::new();
-            
-            loop {
-                clear_background(BLACK);
-                
-                matrix.update(&font, font_size);
-                
-                // Collect FPS samples
-                fps_samples.push(get_fps() as f32);
-                frame_time_samples.push(get_frame_time() * 1000.0);
-                
-                // Keep only last 60 samples
-                if fps_samples.len() > 60 {
-                    fps_samples.remove(0);
-                    frame_time_samples.remove(0);
-                }
-                
-                // Calculate averages
-                let avg_fps = fps_samples.iter().sum::<f32>() / fps_samples.len() as f32;
-                let avg_frame_time = frame_time_samples.iter().sum::<f32>() / frame_time_samples.len() as f32;
-                
-                // Draw FPS in front of everything with big white text
-                draw_text(
-                    &format!("FPS: {:.1}", avg_fps), 
-                    10.0, 30.0, 40.0, WHITE
-                );
-                draw_text(
-                    &format!("Frame: {:.2}ms", avg_frame_time), 
-                    10.0, 70.0, 40.0, WHITE
-                );
-                
-                if is_key_pressed(KeyCode::Escape) {
-                    break;
-                }
-                next_frame().await;
-            }
-            Ok(())
+    let mut rain = MatrixRain::new(rain_config.clone())?;
+    let mut renderer = MacroquadRenderer::new(&font, rain_config.cell_height_px as u16);
+    let mut fps_samples = VecDeque::with_capacity(FPS_SAMPLE_COUNT);
+    let mut frame_time_samples = VecDeque::with_capacity(FPS_SAMPLE_COUNT);
+
+    loop {
+        let frame_time = get_frame_time();
+        rain.update(Duration::from_secs_f32(frame_time.max(0.0)));
+
+        clear_background(BLACK);
+        renderer.render(&rain);
+
+        if demo_config.debug_overlay {
+            track_frame_stats(&mut fps_samples, &mut frame_time_samples, frame_time);
+            draw_debug_overlay(&fps_samples, &frame_time_samples, rain.glyphs().len());
         }
-        Err(error) => {
-            eprintln!("Error creating matrix: {}", error);
-            process::exit(1)
+
+        if is_key_pressed(KeyCode::Escape) {
+            break;
         }
+
+        next_frame().await;
     }
+
+    Ok(())
+}
+
+fn track_frame_stats(
+    fps_samples: &mut VecDeque<f32>,
+    frame_time_samples: &mut VecDeque<f32>,
+    frame_time: f32,
+) {
+    push_sample(fps_samples, get_fps() as f32);
+    push_sample(frame_time_samples, frame_time * 1000.0);
+}
+
+fn push_sample(samples: &mut VecDeque<f32>, value: f32) {
+    if samples.len() == FPS_SAMPLE_COUNT {
+        samples.pop_front();
+    }
+    samples.push_back(value);
+}
+
+fn draw_debug_overlay(
+    fps_samples: &VecDeque<f32>,
+    frame_time_samples: &VecDeque<f32>,
+    visible_glyphs: usize,
+) {
+    let avg_fps = average(fps_samples);
+    let avg_frame_time = average(frame_time_samples);
+
+    draw_text(&format!("FPS: {avg_fps:.1}"), 10.0, 30.0, 30.0, WHITE);
+    draw_text(
+        &format!("Frame: {avg_frame_time:.2}ms"),
+        10.0,
+        62.0,
+        30.0,
+        WHITE,
+    );
+    draw_text(
+        &format!("Glyphs: {visible_glyphs}"),
+        10.0,
+        94.0,
+        30.0,
+        WHITE,
+    );
+}
+
+fn average(samples: &VecDeque<f32>) -> f32 {
+    if samples.is_empty() {
+        0.0
+    } else {
+        samples.iter().sum::<f32>() / samples.len() as f32
+    }
+}
+
+fn load_demo_config() -> Result<DemoConfig, MatrixError> {
+    #[cfg(target_arch = "wasm32")]
+    let config = include_str!("../config.yaml").to_string();
+
+    #[cfg(not(target_arch = "wasm32"))]
+    let config = std::fs::read_to_string("config.yaml")
+        .map_err(|error| MatrixError::resource(format!("failed to read config.yaml: {error}")))?;
+
+    let demo_config = serde_yaml::from_str::<DemoConfig>(&config)
+        .map_err(|error| MatrixError::invalid_config(error.to_string()))?;
+    demo_config.rain.validate()?;
+    Ok(demo_config)
 }
