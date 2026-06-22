@@ -153,15 +153,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "instant"
-version = "0.1.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0242819d153cba4b4b05a5a8f2a7e9bbf97b6055b2a002b395c96b5ff3c0222"
-dependencies = [
- "cfg-if",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -200,6 +191,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "62bb907fe88d54d8d9ce32a3cceab4218ed2f6b7d35617cafe9adf84e43919cb"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "matrix-rain"
+version = "0.1.0"
+dependencies = [
+ "fastrand",
+ "macroquad",
+ "serde",
+ "serde_yaml",
 ]
 
 [[package]]
@@ -283,17 +284,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce25767e7b499d1b604768e7cde645d14cc8584231ea6b295e9c9eb22c02e1d1"
 dependencies = [
  "proc-macro2",
-]
-
-[[package]]
-name = "raytest"
-version = "0.1.0"
-dependencies = [
- "fastrand",
- "instant",
- "macroquad",
- "serde",
- "serde_yaml",
 ]
 
 [[package]]
