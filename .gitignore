@@ -3,3 +3,4 @@
 /matrix-rain-demo.wasm
 /.idea/
 /.vscode/
+/wasm/target/

@@ -77,6 +77,14 @@ impl MatrixRain {
         &self.config
     }
 
+    /// Mutable access to the config for **live retuning of timing/appearance**
+    /// (stream length, step, delays, colors) without rebuilding the field.
+    /// Changing `cell_*`/`viewport_*` here won't relayout the columns — use
+    /// [`MatrixRain::resize`] or a fresh [`MatrixRain::new`] for that.
+    pub fn config_mut(&mut self) -> &mut MatrixRainConfig {
+        &mut self.config
+    }
+
     pub fn glyphs(&self) -> &[GlyphInstance] {
         &self.glyphs
     }
@@ -224,15 +232,24 @@ impl Stream {
     ) {
         self.step_accumulator += delta;
         let step = Duration::from_millis(config.stream_step_ms);
+        // Once the head has fully cleared the bottom (plus trail + fade), stop
+        // spawning new cells so the stream can drain and eventually finish.
+        // Without this the head cell is re-pushed every step, `cells` is never
+        // empty, `is_finished` never fires, and the column never respawns.
+        let finish_row = config.row_count() as i32
+            + self.length as i32
+            + self.fade_step_count(config) as i32;
 
         while self.step_accumulator >= step {
             self.step_accumulator -= step;
             self.head_row += 1;
-            self.cells.push(GlyphCell::new(
-                self.head_row,
-                random_glyph(charset, rng),
-                random_glyph_interval(config, rng),
-            ));
+            if self.head_row <= finish_row {
+                self.cells.push(GlyphCell::new(
+                    self.head_row,
+                    random_glyph(charset, rng),
+                    random_glyph_interval(config, rng),
+                ));
+            }
         }
 
         for cell in &mut self.cells {

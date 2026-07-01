@@ -1,0 +1,19 @@
+[package]
+name = "matrix-rain-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "Thin C-ABI WASM binding for the matrix-rain simulation core. The library computes the falling-code state; a JS caller renders it (e.g. on a 2D canvas)."
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# The renderer-agnostic core only — no macroquad, no yaml.
+matrix-rain = { path = "..", default-features = false }
+
+[profile.release]
+opt-level = "z"
+lto = true
+panic = "abort"
+strip = true
+codegen-units = 1
